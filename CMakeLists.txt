@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   uvc_camera
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
@@ -132,6 +133,7 @@ include_directories(
 ## Testing ##
 #############
 
+
 ## Add gtest based cpp test target and link libraries
 # catkin_add_gtest(${PROJECT_NAME}-test test/test_test_vision.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
@@ -142,29 +144,14 @@ include_directories(
 # catkin_add_nosetests(test)
 
 ADD_DEFINITIONS("-g")
-
 set(map_SRCS
        src/mono_odometry.cpp
+       src/test_MonoVisualOdometry.cpp
 )
 
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${opencv2_INCLUDE_DIRS})
 
-add_executable(test_MonoVisualOdometry src/test_MonoVisualOdometry.cpp ${map_SRCS})
-target_link_libraries(test_MonoVisualOdometry ${catkin_LIBRARIES} ${opencv2_INCLUDE_DIRS})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+add_executable(vision_node ${map_SRCS})
+target_link_libraries(vision_node ${catkin_LIBRARIES})
 
