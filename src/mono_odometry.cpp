@@ -18,8 +18,11 @@ MonoVisualOdometry::MonoVisualOdometry (parameters param) {
       outlier=param.option.outlier;
       method=param.option.method;            
       solver=param.option.solver;
+    // mask=imread("/home/rohit/catkin_ws/mask.png/mask_e.png",0);
 }
-
+MonoVisualOdometry::MonoVisualOdometry () {
+  //delete matcher;
+}
 MonoVisualOdometry::~MonoVisualOdometry () {
   //delete matcher;
 }
@@ -164,20 +167,23 @@ void MonoVisualOdometry::findGoodMatches() {
 }
 
 void MonoVisualOdometry::calcOpticalFlow(){
-    int maxCorners=180;
+    imshow("mask_of",mask);
+waitKey(1000);
+    int maxCorners=200;
+    std::vector<cv::KeyPoint> _keypoints1;	// all keypoints detected
     GoodFeaturesToTrackDetector detector(maxCorners);
-    detector.detect(img1, keypoints1);
+    detector.detect(img1, _keypoints1,mask);
     
     // convert KeyPoint to Point2f
-    for (int i=0;i<keypoints1.size(); i++)
+    for (int i=0;i<_keypoints1.size(); i++)
        {
-        float x= keypoints1[i].pt.x;
-        float y= keypoints1[i].pt.y;
+        float x= _keypoints1[i].pt.x;
+        float y= _keypoints1[i].pt.y;
         keypoints1_2f.push_back(cv::Point2f(x,y));
        }
        
     // LK Sparse Optical Flow   
-    vector<uchar> status; 
+    vector<uchar> status;
     vector<float> err;
     Size winSize=Size(21,21);
     int maxLevel=3;
@@ -186,31 +192,25 @@ void MonoVisualOdometry::calcOpticalFlow(){
     double minEigThreshold=1e-4;
     cv::calcOpticalFlowPyrLK(img1, img2, keypoints1_2f, keypoints2_2f, status, err, winSize, maxLevel, criteria, flags, minEigThreshold);
 
-    int nMatches=0;
-        for (int i=0;i<keypoints2_2f.size(); i++)
-       {
-        if(status[i]==1){
-	nMatches++;
-        }
-       }
-
-    fmatches=new int [nMatches];
-    int k=0;       
-
     // convert Point2fs to KeyPoints
     for (int i=0;i<keypoints2_2f.size(); i++)
        {
         if(status[i]==1){
-        float x= keypoints2_2f[i].x;
-        float y= keypoints2_2f[i].y;
-        KeyPoint kp(x,y,1.0,-1.0,0.0,0,-1);
-        keypoints2.push_back(kp);
-	fmatches[k]=i;
-	k++;
+        float x1= keypoints1_2f[i].x;
+        float y1= keypoints1_2f[i].y;
+        KeyPoint kp1(x1,y1,1.0,-1.0,0.0,0,-1);
+        keypoints1.push_back(kp1);
+        
+        float x2= keypoints2_2f[i].x;
+        float y2= keypoints2_2f[i].y;
+        KeyPoint kp2(x2,y2,1.0,-1.0,0.0,0,-1);        
+        keypoints2.push_back(kp2);  
+        fmatches.push_back(i); 
         }
        }
-      
+
     N=keypoints2.size();  // no of matched feature points
+    cout<<"N"<<N<<"\n";
 }
 
 void MonoVisualOdometry::calcNormCoordinates() {
@@ -234,7 +234,7 @@ void MonoVisualOdometry::calcNormCoordinates() {
      {
      	 Point2f point1,point2;
          if(opticalFlow){
-         point1 = keypoints1[fmatches[i]].pt;
+         point1 = keypoints1[i].pt;
          point2 = keypoints2[i].pt;         
          }
          else {
@@ -266,7 +266,7 @@ void MonoVisualOdometry::estimateTransformMatrix() {
      for(size_t i = 0; i < N; i++)
      {
          if(opticalFlow){
-         point_1 = keypoints1[fmatches[i]].pt;
+         point_1 = keypoints1[i].pt;
          point_2 = keypoints2[i].pt;         
          }
          else {
@@ -301,7 +301,7 @@ void MonoVisualOdometry::rotationScaledTranslation() {
     float e_old=0;
     float grad_sum=10;	// sum of squares of gradients
     
-    while((e>=0.01)&&(count<100)&&(grad_sum>=0.0001)){
+    while((e>=0.0001)&&(count<100)&&(grad_sum>=0.0001)){
 	count++;
 	e_old=e;
         //Old x_vect={tx,ty,phi}
@@ -343,7 +343,7 @@ void MonoVisualOdometry::rotationScaledTranslation_reg() {
     // grad(f(x))={df/dtx,df/dty,df/dphi}
     
     //initial guess
-    tx=0.001;ty=0.001;phi=0.01;	lam=0.005;
+    tx=0.001;ty=0.001;phi=0.01;lam=0.005;
 
     float dDx,dDy,dphi,dphi_new; //gradients
     dphi=df_dphi(tx,ty,phi,1,A,B,N);    
@@ -359,7 +359,7 @@ void MonoVisualOdometry::rotationScaledTranslation_reg() {
     float e_old=0;
     float grad_sum=10;	// sum of squares of gradients
     
-    while((e>=0.01)&&(count<100)&&(grad_sum>=0.0001)){
+    while((e>=0.0001)&&(count<100)&&(grad_sum>=0.0001)){
 	count++;
 	e_old=e;
         //Old x_vect={tx,ty,phi}
@@ -416,7 +416,7 @@ void MonoVisualOdometry::rotationActualTranslation() {
     count=0; 	//no of iterations for error to converge
     float grad_sum=10;	// sum of squares of gradients    
     
-    while((e>=0.01)&&(count<100)&&(grad_sum>=0.0001)){
+    while((e>=0.0001)&&(count<100)&&(grad_sum>=0.0001)){
 	count++;
         //Old x_vect={Dx,Dy,phi,Z}
         Dx_o=Dx;Dy_o=Dy;phi_o=phi;Z_o=Z;
@@ -484,14 +484,27 @@ void MonoVisualOdometry::updateMotion(){
 } 
 
 void MonoVisualOdometry::run() {
-    // get image frames
+    // clear old vectors
+    keypoints1.clear();
+    keypoints2.clear();
+    keypoints1_2f.clear();    
+    keypoints2_2f.clear();    
+    matches.clear();
+    good_matches.clear();
+    fmatches.clear();
 
     // start the timer
     time=clock();    
     
     // convert to grayscale
     cvtColor(img1,img1,CV_BGR2GRAY);
-    cvtColor(img2,img2,CV_BGR2GRAY);  
+    cvtColor(img2,img2,CV_BGR2GRAY); 
+    
+        imshow("1g", img1);
+    waitKey(1000);
+    
+        imshow("2g", img2);
+    waitKey(1000); 
     
   if(opticalFlow){
     //calculate matched feature points optical flow
@@ -521,6 +534,24 @@ void MonoVisualOdometry::run() {
     
     time=clock()-time;
     run_time=((float)time)/CLOCKS_PER_SEC;   //time for single run
+
+    // drawing the keypoints in two imgs
+    namedWindow("keypoints1", 1);
+    Mat img_key1;
+    drawKeypoints(img1, keypoints1,img_key1);
+    imshow("keypoints1", img_key1);
+    waitKey(10);
+    
+    namedWindow("keypoints2", 1);
+    Mat img_key2;
+    drawKeypoints(img2, keypoints2,img_key2);
+    imshow("keypoints2", img_key2);
+    waitKey(10);    
+    
+    namedWindow("mask", 1);
+    imshow("mask", mask);
+    waitKey(0);    
+
 /*
     // display the two frames
     imshow("Old frame", img1);

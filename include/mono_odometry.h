@@ -31,7 +31,7 @@ public:
   };
   
  */ 
-  
+  MonoVisualOdometry();
   struct options {  
     int feature,extract,match,outlier,method,solver; // options for feature points usage and solving methods
     options () { 
@@ -81,7 +81,7 @@ public:
   cv::Mat img1,img2; //old(1) and new(2) frames obtained from camera
   int nframes; // overall count of frames taken
   bool opticalFlow; // set(=1) for optical flow method
-  
+  cv::Mat mask;    // mask image
   // constructor, takes as input a parameter structure:
   MonoVisualOdometry (parameters param);
   
@@ -139,6 +139,7 @@ public:
   // get output 
   void output(pose& );
   
+  
 protected:
 
     //gradient of error function for each variable
@@ -179,8 +180,9 @@ protected:
     float uo; // principal point (u-coordinate)
     float vo; // principal point (v-coordinate)
     cv::Mat rot; 	// transformation calculated using estimateRigidTransform
-    int *fmatches;	// optical flow matches
+    std::vector<int> fmatches;	// optical flow matches
     float lam; 		// regularization term weightage
+ //   cv::Mat mask;    // mask image
 //    vector<uchar> status; // flag to check whether optical flow matching is found
 
 private:

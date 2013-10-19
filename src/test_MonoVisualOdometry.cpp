@@ -16,65 +16,70 @@
 
 using namespace std;
 using namespace cv;
-cv_bridge::CvImagePtr cv_ptr;
-void message(const sensor_msgs::ImageConstPtr& raw_image)
+class vo1
 {
- cv_ptr = cv_bridge::toCvCopy(raw_image,sensor_msgs::image_encodings::BGR8);
-}
-
-int main(int argc, char** argv)
-{   cv_bridge::CvImagePtr cv_ptr;
-	ros::init(argc, argv, "vision_node");
+	public:
 	ros::NodeHandle n;
-	ros::Subscriber sub = n.subscribe("image_raw",1, &message);
-	ros::Publisher vision_pub=n.advertise<nav_msgs::Odometry>("odometry_publisher", 100);
-	//ros::Rate loop_rate(10);
-	ros::spin();
-	
-	
-	
-    // class input parameters - feature options
-    MonoVisualOdometry::parameters param;
-/* not needed for optical flow method
+ros::Subscriber sub;
+Mat frame_old,frame;
+cv_bridge::CvImagePtr cv_ptr;
+Mat mask;
+MonoVisualOdometry::parameters param;
+MonoVisualOdometry odom;
+int count;
+//odom.opticalFlow=true;
+MonoVisualOdometry::pose position; //output struct
 
-    param.option.feature=4;
-    param.option.extract=2;
-    param.option.match=1;
-    param.option.outlier=1;
-*/
-	param.option.method=2;
-    param.option.solver=1; 
+vo1() { mask=imread("mask_e.png",0);
+imshow("mask",mask);
+waitKey(1000);
+		 setup();
+		 odom=MonoVisualOdometry(param);
+		 set_param();
+		 sub= n.subscribe("image_raw",1,&vo1::message,this);
+}	
+ 
+void setup(){
+
+param.option.method=3;
+param.option.solver=1; 
+
+   //  count=0;       
+//odom.nframes=0;
+//odom.opticalFlow=true; 
+  }  
+ 
+ void set_param(){
+	 odom.nframes=0;
+	 odom.opticalFlow=true; 
+	 odom.mask=mask.clone();//imread("/home/rohit/catkin_ws/devel/lib/test_vision/mask_e.png",0);
+	 }    
         
-    Mat frame_old,frame;
+void message(const sensor_msgs::ImageConstPtr& raw_image){
+	cv_ptr = cv_bridge::toCvCopy(raw_image,sensor_msgs::image_encodings::BGR8);    
     
-    frame_old=cv::imread(argv[1]); // for testing
-    frame=cv::imread(argv[2]); // for testing
+	cv_ptr->image.copyTo(frame);
     
-    if(frame_old.empty() || frame.empty())
-    {
-        cout<<"Can't read one of the images\n";
-        return -1;
-    }
+    namedWindow("mesg",1);
+    imshow("mesg",frame);
+    waitKey(1000);
     
-    MonoVisualOdometry odom(param);               
-    odom.nframes=1; // keeps track of overall frames count
-//    odom.nframes=0; // shud be intitialised with =0; for testing =1;
-    odom.opticalFlow=true;
-    
-//    while(!flag){	//actual
-    //for(int i=0 ;i<1 ;i++){	// for(;;) testing
-    while(ros::ok()){
-	// get new frame from ROS
-        //cin>>frame; 
-        frame=cv_ptr->image;
+    cout<<frame.size()<<"\n";
+    // get new frame from ROS
+        //cin>>frame;  
         odom.nframes++;
-       MonoVisualOdometry::pose position; //output struct
-       if(odom.nframes>=2) {
+        //count++;
+cout<<"count"<<odom.nframes<<"flag"<<odom.opticalFlow<<"\n";
+        if(odom.nframes>=2) {
   	  // run odometry
-  	  odom.img1=frame_old;
-  	  odom.img2=frame;
+  	  odom.img1=frame_old.clone();
+  	  odom.img2=frame.clone();
+  	  imshow("img1",odom.img1);
+  	  waitKey(1000);
+  	  imshow("img2",odom.img1);
+   	  waitKey(1000);
    	  odom.run(); 	// run the main odometry calculations
-   	  
+   	  //MonoVisualOdometry::pose position; //output struct
 	  odom.output(position);  // get output parameters
 	  cout<<"N="<<position.N<<"\n"; // no of good_matches
 	  cout<<"x_net="<<position.x_net<<"\n"; // net x-translation
@@ -92,28 +97,33 @@ int main(int argc, char** argv)
           cout<<"y_scaled="<<position.y_scaled<<"\n";		// scaled y-translation
           cout<<"converged error="<<position.error<<"\n";
     	}
-    	
-    	
-    //Publishing ros message
-    ros::Time current_time;
-    current_time = ros::Time::now();
-    nav_msgs::Odometry odom_p;
-    odom_p.header.stamp = current_time;
-    geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(position.heading_rel);
-    
-    odom_p.pose.pose.position.x =position.x_rel;
-    odom_p.pose.pose.position.y =position.y_rel;
-    odom_p.pose.pose.position.z =(position.Z_avg1+position.Z_avg2)/2;
-    odom_p.pose.pose.orientation = odom_quat;
-    
-    vision_pub.publish(odom_p);
-
-    
 	
 	//copy the frame to frame_old
-	frame_old=frame.clone();    	
-    }
+	frame.copyTo(frame_old);//frame.clone();      	
+    //namedWindow("msg",1);
+    imshow("msg..",frame_old);
+    waitKey(100);
     
+ 
+ }
+ 
+ void spin()
+ {
+	 ros::spin();
+ }
+};
+int main(int argc, char** argv)
+{  
+	ros::init(argc, argv, "vision_node");
+	vo1 v;
+	v.spin();
+	//ros::Publisher vision_pub=n.advertise<nav_msgs::Odometry>("odometry_publisher", 100);
+	//ros::Rate loop_rate(10);
+	
+	
+	
+	
+
     // ROS Plot x_net, y_net, heading_net wrt time
     
     return 0;
