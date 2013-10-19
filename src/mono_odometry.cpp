@@ -168,7 +168,7 @@ void MonoVisualOdometry::findGoodMatches() {
 
 void MonoVisualOdometry::calcOpticalFlow(){
     imshow("mask_of",mask);
-waitKey(1000);
+waitKey(1);
     int maxCorners=200;
     std::vector<cv::KeyPoint> _keypoints1;	// all keypoints detected
     GoodFeaturesToTrackDetector detector(maxCorners);
@@ -501,10 +501,10 @@ void MonoVisualOdometry::run() {
     cvtColor(img2,img2,CV_BGR2GRAY); 
     
         imshow("1g", img1);
-    waitKey(1000);
+    //waitKey(1);
     
         imshow("2g", img2);
-    waitKey(1000); 
+    //waitKey(1); 
     
   if(opticalFlow){
     //calculate matched feature points optical flow
@@ -540,17 +540,17 @@ void MonoVisualOdometry::run() {
     Mat img_key1;
     drawKeypoints(img1, keypoints1,img_key1);
     imshow("keypoints1", img_key1);
-    waitKey(10);
+    waitKey(1);
     
     namedWindow("keypoints2", 1);
     Mat img_key2;
     drawKeypoints(img2, keypoints2,img_key2);
     imshow("keypoints2", img_key2);
-    waitKey(10);    
+    waitKey(1);    
     
     namedWindow("mask", 1);
     imshow("mask", mask);
-    waitKey(0);    
+    waitKey(1);    
 
 /*
     // display the two frames

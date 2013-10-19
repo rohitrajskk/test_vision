@@ -32,7 +32,7 @@ MonoVisualOdometry::pose position; //output struct
 
 vo1() { mask=imread("mask_e.png",0);
 imshow("mask",mask);
-waitKey(1000);
+waitKey(1);
 		 setup();
 		 odom=MonoVisualOdometry(param);
 		 set_param();
@@ -62,7 +62,7 @@ void message(const sensor_msgs::ImageConstPtr& raw_image){
     
     namedWindow("mesg",1);
     imshow("mesg",frame);
-    waitKey(1000);
+    waitKey(1);
     
     cout<<frame.size()<<"\n";
     // get new frame from ROS
@@ -75,9 +75,9 @@ cout<<"count"<<odom.nframes<<"flag"<<odom.opticalFlow<<"\n";
   	  odom.img1=frame_old.clone();
   	  odom.img2=frame.clone();
   	  imshow("img1",odom.img1);
-  	  waitKey(1000);
+  	  waitKey(1);
   	  imshow("img2",odom.img1);
-   	  waitKey(1000);
+   	  waitKey(1);
    	  odom.run(); 	// run the main odometry calculations
    	  //MonoVisualOdometry::pose position; //output struct
 	  odom.output(position);  // get output parameters
